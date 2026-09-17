@@ -53,10 +53,11 @@
 
   .date-selector{
     display:flex;
+    flex-direction:column;
     align-items:center;
-    gap:12px;
+    gap:6px;
     background:var(--panel);
-    padding:10px 18px;
+    padding:12px 20px;
     border-radius:16px;
     margin:18px 0 30px;
     border:1px solid var(--border);
@@ -76,17 +77,19 @@
   .custom-select-btn{
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:center;
     gap:10px;
-    min-width:220px;
+    width:max-content;
+    max-width:88vw;
     background:var(--panel-soft);
     color:var(--text);
     border:1px solid var(--border);
     border-radius:10px;
-    padding:8px 14px;
+    padding:8px 16px;
     font-family:'Nunito',sans-serif;
     font-weight:800;
-    font-size:16px;
+    font-size:clamp(13px,4vw,16px);
+    white-space:nowrap;
     cursor:pointer;
   }
   .custom-select-btn .caret{
@@ -293,7 +296,7 @@
     <label>Fecha</label>
     <div class="custom-select" id="fechaDropdown">
       <button type="button" class="custom-select-btn" id="fechaBtn">
-        <span id="fechaBtnText">—</span>
+        <span id="fechaBtnText">Cargando…</span>
         <span class="caret"></span>
       </button>
       <div class="custom-select-list" id="fechaList"></div>
@@ -317,18 +320,18 @@
     </div>
   </div>
 
-  <div class="status-msg" id="statusMsg"></div>
+  <div class="status-msg" id="statusMsg">Cargando datos…</div>
 
   <div class="totals">
     <div class="total-card thermica-card">
       <div class="total-label">THERMICA</div>
-      <div class="total-number" id="totalThermica">0</div>
-      <div class="total-percent" id="percentThermica">(0%)</div>
+      <div class="total-number" id="totalThermica">…</div>
+      <div class="total-percent" id="percentThermica">&nbsp;</div>
     </div>
     <div class="total-card calorub-card">
       <div class="total-label">CALORUB</div>
-      <div class="total-number" id="totalCalorub">0</div>
-      <div class="total-percent" id="percentCalorub">(0%)</div>
+      <div class="total-number" id="totalCalorub">…</div>
+      <div class="total-percent" id="percentCalorub">&nbsp;</div>
     </div>
   </div>
 
@@ -514,6 +517,7 @@
 
   let requestSeq = 0;
   let requestPending = false;
+  let cargaInicialCompleta = false;
 
   function cargarDatos(force){
     if(requestPending && !force) return; // evita solicitudes superpuestas
@@ -550,6 +554,11 @@
         actualizarTotales(seleccion);
       } else {
         actualizarTotales(null);
+      }
+
+      if(!cargaInicialCompleta){
+        cargaInicialCompleta = true;
+        statusMsg.textContent = '';
       }
 
       delete window[callbackName];
