@@ -35,49 +35,29 @@
   }
   .header h1{
     margin:0;
-    font-size:clamp(30px,8vw,56px);
+    font-size:clamp(16px,7.2vw,56px);
     font-weight:900;
     letter-spacing:0.5px;
+    white-space:nowrap;
   }
   .header h1 .thermica-word{color:var(--thermica);}
   .header h1 .sep{color:var(--muted); margin:0 10px; font-weight:700;}
   .header h1 .calorub-word{color:var(--calorub);}
   .header .subtitle{
-    margin-top:6px;
-    font-size:16px;
+    margin-top:8px;
+    font-size:32px;
     font-weight:700;
     color:var(--muted);
     letter-spacing:1px;
     text-transform:uppercase;
   }
 
-  .modo-tabs{
-    display:flex;
-    gap:6px;
-    padding:10px 10px 8px;
-    border-bottom:1px solid var(--border);
-  }
-  .modo-tab{
-    flex:1;
-    background:var(--panel-soft);
-    color:var(--muted);
-    border:1px solid var(--border);
-    border-radius:8px;
-    padding:6px 8px;
-    font-family:'Nunito',sans-serif;
-    font-weight:800;
-    font-size:12px;
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .modo-tab.active{
-    background:var(--thermica);
-    color:#fff;
-    border-color:var(--thermica);
-  }
   .date-options{
-    max-height:240px;
+    max-height:320px;
     overflow-y:auto;
+  }
+  .date-option.opcion-total{
+    border-bottom:1px solid var(--border);
   }
 
   .date-selector{
@@ -95,7 +75,7 @@
   }
   .date-selector label{
     font-weight:900;
-    font-size:clamp(16px,4vw,20px);
+    font-size:clamp(32px,8vw,40px);
     letter-spacing:1.5px;
     text-transform:uppercase;
     color:var(--calorub);
@@ -181,8 +161,6 @@
     border-radius:44px;
     border:1px solid var(--border);
     overflow:hidden;
-    touch-action:none;
-    cursor:grab;
   }
   .slider-fill-left, .slider-fill-right{
     position:absolute;
@@ -257,6 +235,8 @@
     align-items:center;
     justify-content:center;
     transition:left 0.35s cubic-bezier(.2,.9,.3,1);
+    touch-action:none;
+    cursor:grab;
     z-index:3;
   }
   .slider-handle.dragging{transition:none;}
@@ -331,11 +311,6 @@
         <span class="caret"></span>
       </button>
       <div class="custom-select-list" id="fechaList">
-        <div class="modo-tabs">
-          <button type="button" class="modo-tab" data-modo="total">Total</button>
-          <button type="button" class="modo-tab" data-modo="mes">Cada mes</button>
-          <button type="button" class="modo-tab active" data-modo="fecha">Cada fecha</button>
-        </div>
         <div class="date-options" id="dateOptions"></div>
       </div>
     </div>
@@ -377,7 +352,7 @@
   const ENDPOINT = "https://script.google.com/macros/s/AKfycbz3Tu43vEBTK5F9htQ7c9OEp9dItass7QkCq_PUk-vaE4LQga8uCmE7mtOF4ojjPNr8/exec";
   const META = 200;
   const REGISTER_THRESHOLD = 25; // % desde el borde -> se activa a mitad de camino desde el centro
-  const REFRESH_MS = 3000; // actualización periódica de totales
+  const REFRESH_MS = 6000 + Math.floor(Math.random() * 2000); // actualización periódica de totales (con variación por dispositivo)
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -419,62 +394,47 @@
   const fechaBtnText = document.getElementById('fechaBtnText');
   const fechaList = document.getElementById('fechaList');
   const dateOptions = document.getElementById('dateOptions');
-  const modoTabs = document.querySelectorAll('.modo-tab');
 
   let dragging = false;
   let currentPercent = 50;
   let dataByFecha = {};
   let fechas = [];
-  let modoActual = 'fecha'; // 'total' | 'mes' | 'fecha'
-  let valorSeleccionado = null;
-
-  // --- Manejo del modo de agrupación (Total / Cada mes / Cada fecha), dentro del propio menú ---
-
-  modoTabs.forEach(tab=>{
-    tab.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      modoActual = tab.dataset.modo;
-      modoTabs.forEach(t=> t.classList.toggle('active', t === tab));
-      valorSeleccionado = null; // fuerza a elegir la opción por defecto del nuevo modo
-      actualizarSelectorYTotales();
-      if(modoActual === 'total'){
-        cerrarFechaList(); // no hay nada más que elegir en este modo
-      } else {
-        abrirFechaList();
-      }
-    });
-  });
+  let valorSeleccionado = null; // clave compuesta: 'total', 'mes:MM/yyyy' o 'fecha:dd/MM/yyyy'
 
   function claveMes_(fecha){
     const p = fecha.split('/');
     return p[1] + '/' + p[2]; // MM/yyyy
   }
 
+  // Devuelve el listado combinado: Total, luego cada mes con registros, luego cada fecha individual
   function obtenerOpciones(){
-    if(modoActual === 'total') return ['TOTAL'];
-    if(modoActual === 'mes'){
-      const set = {};
-      fechas.forEach(f=> set[claveMes_(f)] = true);
-      return Object.keys(set).sort(function(a,b){
-        const pa = a.split('/'), pb = b.split('/');
-        return (parseInt(pb[1],10)*100+parseInt(pb[0],10)) - (parseInt(pa[1],10)*100+parseInt(pa[0],10));
-      });
-    }
-    return fechas; // 'fecha': ya viene ordenado, más reciente primero
+    const opciones = [{tipo:'total', valor:'TOTAL', clave:'total'}];
+
+    const mesesSet = {};
+    fechas.forEach(f=> mesesSet[claveMes_(f)] = true);
+    const meses = Object.keys(mesesSet).sort(function(a,b){
+      const pa = a.split('/'), pb = b.split('/');
+      return (parseInt(pb[1],10)*100+parseInt(pb[0],10)) - (parseInt(pa[1],10)*100+parseInt(pa[0],10));
+    });
+    meses.forEach(m=> opciones.push({tipo:'mes', valor:m, clave:'mes:'+m}));
+
+    fechas.forEach(f=> opciones.push({tipo:'fecha', valor:f, clave:'fecha:'+f}));
+
+    return opciones;
   }
 
-  function formatOpcion(valor){
-    if(modoActual === 'total') return 'Total';
-    if(modoActual === 'mes'){
-      const p = valor.split('/');
+  function formatOpcion(op){
+    if(op.tipo === 'total') return 'Total';
+    if(op.tipo === 'mes'){
+      const p = op.valor.split('/');
       const mesNombre = MESES[parseInt(p[0],10)-1] || p[0];
       return mesNombre + ' ' + p[1];
     }
-    return formatFechaSimple(valor);
+    return formatFechaSimple(op.valor);
   }
 
-  function obtenerTotalesParaValor(valor){
-    if(modoActual === 'total'){
+  function obtenerTotalesParaOpcion(op){
+    if(!op || op.tipo === 'total'){
       let t=0, c=0;
       Object.keys(dataByFecha).forEach(f=>{
         t += dataByFecha[f].THERMICA || 0;
@@ -482,27 +442,30 @@
       });
       return {THERMICA:t, CALORUB:c};
     }
-    if(modoActual === 'mes'){
+    if(op.tipo === 'mes'){
       let t=0, c=0;
       Object.keys(dataByFecha).forEach(f=>{
-        if(claveMes_(f) === valor){
+        if(claveMes_(f) === op.valor){
           t += dataByFecha[f].THERMICA || 0;
           c += dataByFecha[f].CALORUB || 0;
         }
       });
       return {THERMICA:t, CALORUB:c};
     }
-    return dataByFecha[valor] || {THERMICA:0, CALORUB:0};
+    return dataByFecha[op.valor] || {THERMICA:0, CALORUB:0};
   }
 
   function actualizarSelectorYTotales(){
     const opciones = obtenerOpciones();
-    if(!opciones.includes(valorSeleccionado)){
-      valorSeleccionado = opciones[0] || null;
+    let seleccionada = opciones.find(o=> o.clave === valorSeleccionado);
+    if(!seleccionada){
+      // Por defecto: la fecha individual más reciente si existe, si no, Total
+      seleccionada = opciones.find(o=> o.tipo === 'fecha') || opciones[0];
     }
-    fechaBtnText.textContent = valorSeleccionado ? formatOpcion(valorSeleccionado) : '—';
+    valorSeleccionado = seleccionada ? seleccionada.clave : null;
+    fechaBtnText.textContent = seleccionada ? formatOpcion(seleccionada) : '—';
     renderOpciones(opciones);
-    actualizarTotales(valorSeleccionado);
+    actualizarTotales(seleccionada);
   }
 
   // --- Menú desplegable personalizado ---
@@ -529,14 +492,14 @@
 
   function renderOpciones(opciones){
     dateOptions.innerHTML = '';
-    opciones.forEach(v=>{
+    opciones.forEach(op=>{
       const item = document.createElement('div');
-      item.className = 'date-option' + (v === valorSeleccionado ? ' selected' : '');
-      item.textContent = formatOpcion(v);
+      item.className = 'date-option' + (op.tipo === 'total' ? ' opcion-total' : '') + (op.clave === valorSeleccionado ? ' selected' : '');
+      item.textContent = formatOpcion(op);
       item.addEventListener('click', ()=>{
-        valorSeleccionado = v;
-        fechaBtnText.textContent = formatOpcion(v);
-        actualizarTotales(v);
+        valorSeleccionado = op.clave;
+        fechaBtnText.textContent = formatOpcion(op);
+        actualizarTotales(op);
         cerrarFechaList();
         renderOpciones(opciones);
       });
@@ -587,14 +550,14 @@
     setHandlePercent(50);
   }
 
-  track.addEventListener('pointerdown', (e)=>{
-    track.setPointerCapture(e.pointerId);
+  handle.addEventListener('pointerdown', (e)=>{
+    e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
     startDrag(e.clientX);
-    setHandlePercent(getPercentFromEvent(e.clientX));
   });
-  track.addEventListener('pointermove', (e)=> moveDrag(e.clientX));
-  track.addEventListener('pointerup', endDrag);
-  track.addEventListener('pointercancel', endDrag);
+  handle.addEventListener('pointermove', (e)=> moveDrag(e.clientX));
+  handle.addEventListener('pointerup', endDrag);
+  handle.addEventListener('pointercancel', endDrag);
 
   function registrar(marca){
     statusMsg.textContent = 'Registrando ' + marca + '...';
@@ -622,8 +585,8 @@
     });
   }
 
-  function actualizarTotales(valor){
-    const d = obtenerTotalesParaValor(valor);
+  function actualizarTotales(op){
+    const d = obtenerTotalesParaOpcion(op);
     const totT = d.THERMICA || 0;
     const totC = d.CALORUB || 0;
     document.getElementById('totalThermica').textContent = totT;
@@ -650,7 +613,7 @@
     // El primer llamado puede tardar bastante más si Apps Script estaba
     // "frío" (inactivo). Le damos más margen para no cancelarlo en vano
     // y terminar lanzando varios intentos en paralelo que compiten entre sí.
-    const tiempoEspera = cargaInicialCompleta ? 8000 : 25000;
+    const tiempoEspera = cargaInicialCompleta ? 15000 : 25000;
 
     const timeoutId = setTimeout(()=>{
       if(window[callbackName]){
