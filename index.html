@@ -54,33 +54,45 @@
   .date-selector{
     display:flex;
     align-items:center;
-    gap:10px;
+    gap:12px;
     background:var(--panel);
-    padding:8px 16px;
-    border-radius:12px;
+    padding:10px 18px;
+    border-radius:16px;
     margin:18px 0 30px;
     border:1px solid var(--border);
-    border-top:3px solid var(--thermica);
+    border-top:4px solid var(--thermica);
+    box-shadow:0 4px 14px rgba(0,0,0,0.35);
   }
   .date-selector label{
-    font-weight:800;
+    font-weight:900;
     font-size:12px;
-    letter-spacing:1px;
+    letter-spacing:1.5px;
     text-transform:uppercase;
-    color:var(--muted);
+    color:var(--calorub);
   }
   .date-selector select{
-    background:var(--panel-light);
+    appearance:none;
+    -webkit-appearance:none;
+    -moz-appearance:none;
+    background-color:var(--panel-light);
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='14' height='9' viewBox='0 0 14 9'><path d='M1 1l6 6 6-6' fill='none' stroke='%23f5e6df' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat;
+    background-position:right 12px center;
     color:var(--text);
     border:1px solid var(--border);
-    border-radius:8px;
-    padding:6px 12px;
+    border-radius:10px;
+    padding:8px 34px 8px 14px;
     font-family:'Nunito',sans-serif;
-    font-weight:700;
-    font-size:14px;
+    font-weight:800;
+    font-size:16px;
+    cursor:pointer;
   }
   .date-selector select:focus{
     outline:2px solid var(--thermica);
+  }
+  .date-selector select option{
+    background:var(--panel-light);
+    color:var(--text);
   }
 
   .slider-section{
@@ -126,9 +138,11 @@
     position:absolute;
     top:50%;
     transform:translateY(-50%);
+    width:78px;
+    height:38px;
     background:#fff;
     border-radius:14px;
-    padding:6px 12px;
+    padding:5px 8px;
     display:flex;
     align-items:center;
     justify-content:center;
@@ -137,8 +151,9 @@
     pointer-events:none;
   }
   .slider-logo img{
-    height:30px;
-    width:auto;
+    width:100%;
+    height:100%;
+    object-fit:contain;
     display:block;
   }
   .slider-logo-left{left:10px;}
@@ -169,13 +184,6 @@
     background:linear-gradient(135deg, var(--thermica), var(--calorub));
   }
 
-  .hint{
-    margin-top:14px;
-    font-size:13px;
-    color:var(--muted);
-    text-align:center;
-  }
-
   .totals{
     display:flex;
     gap:18px;
@@ -194,11 +202,12 @@
   .thermica-card{border-top:4px solid var(--thermica);}
   .calorub-card{border-top:4px solid var(--calorub);}
   .total-label{
-    font-size:13px;
-    font-weight:800;
-    letter-spacing:1px;
+    font-size:clamp(22px,7vw,34px);
+    font-weight:900;
+    letter-spacing:0.5px;
     color:var(--muted);
-    margin-bottom:6px;
+    margin-bottom:8px;
+    line-height:1.1;
   }
   .total-number{
     font-size:clamp(64px,16vw,96px);
@@ -246,7 +255,6 @@
     </div>
   </div>
 
-  <div class="hint">Desliza el círculo hacia THERMICA o hacia CALORUB para registrar tu preferencia</div>
   <div class="status-msg" id="statusMsg"></div>
 
   <div class="totals">
@@ -266,7 +274,7 @@
   const ENDPOINT = "https://script.google.com/macros/s/AKfycbz3Tu43vEBTK5F9htQ7c9OEp9dItass7QkCq_PUk-vaE4LQga8uCmE7mtOF4ojjPNr8/exec";
   const META = 200;
   const REGISTER_THRESHOLD = 15; // % desde el borde para gatillar el registro
-  const REFRESH_MS = 4000; // actualización periódica de totales
+  const REFRESH_MS = 3000; // actualización periódica de totales
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -352,7 +360,7 @@
     }).then(()=>{
       statusMsg.textContent = marca + ' registrado ✓';
       setTimeout(()=>{ statusMsg.textContent=''; }, 2000);
-      setTimeout(cargarDatos, 500);
+      setTimeout(function(){ cargarDatos(true); }, 500);
     }).catch(()=>{
       statusMsg.textContent = 'Error al registrar';
     });
@@ -368,9 +376,34 @@
     document.getElementById('percentCalorub').textContent = '(' + Math.round(totC/META*100) + '%)';
   }
 
-  function cargarDatos(){
-    const callbackName = 'cb_' + Date.now();
+  let requestSeq = 0;
+  let requestPending = false;
+
+  function cargarDatos(force){
+    if(requestPending && !force) return; // evita solicitudes superpuestas
+    requestPending = true;
+    const myRequestId = ++requestSeq;
+    const callbackName = 'cb_' + myRequestId + '_' + Date.now();
+
+    const timeoutId = setTimeout(()=>{
+      // si el callback nunca llega (red lenta/caída), no bloquear futuras cargas
+      if(window[callbackName]){
+        delete window[callbackName];
+      }
+      if(myRequestId === requestSeq){
+        requestPending = false;
+      }
+    }, 8000);
+
     window[callbackName] = function(result){
+      clearTimeout(timeoutId);
+      // Ignora respuestas de solicitudes antiguas que llegaron fuera de orden
+      if(myRequestId !== requestSeq){
+        delete window[callbackName];
+        if(scriptTag && scriptTag.parentNode) scriptTag.remove();
+        return;
+      }
+
       dataByFecha = result.porFecha || {};
       fechas = result.fechas || [];
 
@@ -392,11 +425,20 @@
       }
 
       delete window[callbackName];
-      script.remove();
+      requestPending = false;
+      if(scriptTag && scriptTag.parentNode) scriptTag.remove();
     };
-    const script = document.createElement('script');
-    script.src = ENDPOINT + '?callback=' + callbackName;
-    document.body.appendChild(script);
+    const scriptTag = document.createElement('script');
+    scriptTag.src = ENDPOINT + '?callback=' + callbackName;
+    scriptTag.onerror = function(){
+      clearTimeout(timeoutId);
+      delete window[callbackName];
+      if(myRequestId === requestSeq){
+        requestPending = false;
+      }
+      if(scriptTag.parentNode) scriptTag.remove();
+    };
+    document.body.appendChild(scriptTag);
   }
 
   fechaSelect.addEventListener('change', ()=>{
