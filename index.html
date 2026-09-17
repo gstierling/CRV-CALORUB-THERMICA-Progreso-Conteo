@@ -518,12 +518,17 @@
   let requestSeq = 0;
   let requestPending = false;
   let cargaInicialCompleta = false;
+  let intentos = 0;
 
   function cargarDatos(force){
     if(requestPending && !force) return; // evita solicitudes superpuestas
     requestPending = true;
     const myRequestId = ++requestSeq;
     const callbackName = 'cb_' + myRequestId + '_' + Date.now();
+    intentos++;
+    if(!cargaInicialCompleta){
+      statusMsg.textContent = 'Cargando datos' + (intentos > 1 ? ' (intento ' + intentos + ')…' : '…');
+    }
 
     const timeoutId = setTimeout(()=>{
       if(window[callbackName]){
@@ -532,7 +537,7 @@
       if(myRequestId === requestSeq){
         requestPending = false;
       }
-    }, 8000);
+    }, 6000);
 
     window[callbackName] = function(result){
       clearTimeout(timeoutId);
