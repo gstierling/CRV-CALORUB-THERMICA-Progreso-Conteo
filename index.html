@@ -35,7 +35,7 @@
   }
   .header h1{
     margin:0;
-    font-size:clamp(22px,5vw,38px);
+    font-size:clamp(30px,8vw,56px);
     font-weight:900;
     letter-spacing:0.5px;
   }
@@ -43,30 +43,59 @@
   .header h1 .sep{color:var(--muted); margin:0 10px; font-weight:700;}
   .header h1 .calorub-word{color:var(--calorub);}
   .header .subtitle{
-    margin-top:4px;
-    font-size:15px;
-    font-weight:600;
+    margin-top:6px;
+    font-size:16px;
+    font-weight:700;
     color:var(--muted);
     letter-spacing:1px;
     text-transform:uppercase;
+  }
+
+  .modo-tabs{
+    display:flex;
+    gap:6px;
+    padding:10px 10px 8px;
+    border-bottom:1px solid var(--border);
+  }
+  .modo-tab{
+    flex:1;
+    background:var(--panel-soft);
+    color:var(--muted);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:6px 8px;
+    font-family:'Nunito',sans-serif;
+    font-weight:800;
+    font-size:12px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .modo-tab.active{
+    background:var(--thermica);
+    color:#fff;
+    border-color:var(--thermica);
+  }
+  .date-options{
+    max-height:240px;
+    overflow-y:auto;
   }
 
   .date-selector{
     display:flex;
     flex-direction:column;
     align-items:center;
-    gap:6px;
+    gap:8px;
     background:var(--panel);
     padding:12px 20px;
     border-radius:16px;
-    margin:18px 0 30px;
+    margin:14px 0 30px;
     border:1px solid var(--border);
     border-top:4px solid var(--thermica);
     box-shadow:0 4px 14px rgba(70,20,15,0.08);
   }
   .date-selector label{
     font-weight:900;
-    font-size:12px;
+    font-size:clamp(16px,4vw,20px);
     letter-spacing:1.5px;
     text-transform:uppercase;
     color:var(--calorub);
@@ -85,19 +114,19 @@
     color:var(--text);
     border:1px solid var(--border);
     border-radius:10px;
-    padding:8px 16px;
+    padding:9px 18px;
     font-family:'Nunito',sans-serif;
-    font-weight:800;
-    font-size:clamp(13px,4vw,16px);
+    font-weight:900;
+    font-size:clamp(17px,5vw,24px);
     white-space:nowrap;
     cursor:pointer;
   }
   .custom-select-btn .caret{
     width:0;
     height:0;
-    border-left:5px solid transparent;
-    border-right:5px solid transparent;
-    border-top:6px solid var(--muted);
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-top:7px solid var(--muted);
     transition:transform 0.2s ease;
     flex-shrink:0;
   }
@@ -107,14 +136,15 @@
   .custom-select-list{
     position:absolute;
     top:calc(100% + 8px);
-    left:0;
-    right:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:max-content;
+    min-width:230px;
+    max-width:92vw;
     background:var(--panel);
     border:1px solid var(--border);
     border-radius:12px;
     box-shadow:0 10px 28px rgba(70,20,15,0.18);
-    max-height:260px;
-    overflow-y:auto;
     z-index:20;
     display:none;
   }
@@ -122,11 +152,12 @@
     display:block;
   }
   .date-option{
-    padding:11px 16px;
-    font-weight:700;
-    font-size:15px;
+    padding:12px 20px;
+    font-weight:800;
+    font-size:clamp(16px,4.5vw,21px);
     color:var(--text);
     cursor:pointer;
+    white-space:nowrap;
   }
   .date-option:hover{
     background:var(--panel-soft);
@@ -299,7 +330,14 @@
         <span id="fechaBtnText">Cargando…</span>
         <span class="caret"></span>
       </button>
-      <div class="custom-select-list" id="fechaList"></div>
+      <div class="custom-select-list" id="fechaList">
+        <div class="modo-tabs">
+          <button type="button" class="modo-tab" data-modo="total">Total</button>
+          <button type="button" class="modo-tab" data-modo="mes">Cada mes</button>
+          <button type="button" class="modo-tab active" data-modo="fecha">Cada fecha</button>
+        </div>
+        <div class="date-options" id="dateOptions"></div>
+      </div>
     </div>
   </div>
 
@@ -380,12 +418,94 @@
   const fechaBtn = document.getElementById('fechaBtn');
   const fechaBtnText = document.getElementById('fechaBtnText');
   const fechaList = document.getElementById('fechaList');
+  const dateOptions = document.getElementById('dateOptions');
+  const modoTabs = document.querySelectorAll('.modo-tab');
 
   let dragging = false;
   let currentPercent = 50;
   let dataByFecha = {};
   let fechas = [];
-  let fechaSeleccionada = null;
+  let modoActual = 'fecha'; // 'total' | 'mes' | 'fecha'
+  let valorSeleccionado = null;
+
+  // --- Manejo del modo de agrupación (Total / Cada mes / Cada fecha), dentro del propio menú ---
+
+  modoTabs.forEach(tab=>{
+    tab.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      modoActual = tab.dataset.modo;
+      modoTabs.forEach(t=> t.classList.toggle('active', t === tab));
+      valorSeleccionado = null; // fuerza a elegir la opción por defecto del nuevo modo
+      actualizarSelectorYTotales();
+      if(modoActual === 'total'){
+        cerrarFechaList(); // no hay nada más que elegir en este modo
+      } else {
+        abrirFechaList();
+      }
+    });
+  });
+
+  function claveMes_(fecha){
+    const p = fecha.split('/');
+    return p[1] + '/' + p[2]; // MM/yyyy
+  }
+
+  function obtenerOpciones(){
+    if(modoActual === 'total') return ['TOTAL'];
+    if(modoActual === 'mes'){
+      const set = {};
+      fechas.forEach(f=> set[claveMes_(f)] = true);
+      return Object.keys(set).sort(function(a,b){
+        const pa = a.split('/'), pb = b.split('/');
+        return (parseInt(pb[1],10)*100+parseInt(pb[0],10)) - (parseInt(pa[1],10)*100+parseInt(pa[0],10));
+      });
+    }
+    return fechas; // 'fecha': ya viene ordenado, más reciente primero
+  }
+
+  function formatOpcion(valor){
+    if(modoActual === 'total') return 'Total';
+    if(modoActual === 'mes'){
+      const p = valor.split('/');
+      const mesNombre = MESES[parseInt(p[0],10)-1] || p[0];
+      return mesNombre + ' ' + p[1];
+    }
+    return formatFechaSimple(valor);
+  }
+
+  function obtenerTotalesParaValor(valor){
+    if(modoActual === 'total'){
+      let t=0, c=0;
+      Object.keys(dataByFecha).forEach(f=>{
+        t += dataByFecha[f].THERMICA || 0;
+        c += dataByFecha[f].CALORUB || 0;
+      });
+      return {THERMICA:t, CALORUB:c};
+    }
+    if(modoActual === 'mes'){
+      let t=0, c=0;
+      Object.keys(dataByFecha).forEach(f=>{
+        if(claveMes_(f) === valor){
+          t += dataByFecha[f].THERMICA || 0;
+          c += dataByFecha[f].CALORUB || 0;
+        }
+      });
+      return {THERMICA:t, CALORUB:c};
+    }
+    return dataByFecha[valor] || {THERMICA:0, CALORUB:0};
+  }
+
+  function actualizarSelectorYTotales(){
+    const opciones = obtenerOpciones();
+    if(!opciones.includes(valorSeleccionado)){
+      valorSeleccionado = opciones[0] || null;
+    }
+    fechaBtnText.textContent = valorSeleccionado ? formatOpcion(valorSeleccionado) : '—';
+    renderOpciones(opciones);
+    actualizarTotales(valorSeleccionado);
+  }
+
+  // --- Menú desplegable personalizado ---
 
   function abrirFechaList(){
     fechaList.classList.add('show');
@@ -407,22 +527,24 @@
     if(!fechaDropdown.contains(e.target)) cerrarFechaList();
   });
 
-  function renderFechaOptions(){
-    fechaList.innerHTML = '';
-    fechas.forEach(f=>{
+  function renderOpciones(opciones){
+    dateOptions.innerHTML = '';
+    opciones.forEach(v=>{
       const item = document.createElement('div');
-      item.className = 'date-option' + (f === fechaSeleccionada ? ' selected' : '');
-      item.textContent = formatFechaSimple(f);
+      item.className = 'date-option' + (v === valorSeleccionado ? ' selected' : '');
+      item.textContent = formatOpcion(v);
       item.addEventListener('click', ()=>{
-        fechaSeleccionada = f;
-        fechaBtnText.textContent = formatFechaSimple(f);
-        actualizarTotales(f);
+        valorSeleccionado = v;
+        fechaBtnText.textContent = formatOpcion(v);
+        actualizarTotales(v);
         cerrarFechaList();
-        renderFechaOptions();
+        renderOpciones(opciones);
       });
-      fechaList.appendChild(item);
+      dateOptions.appendChild(item);
     });
   }
+
+  // --- Barra deslizante ---
 
   function setHandlePercent(p){
     currentPercent = Math.max(0, Math.min(100, p));
@@ -484,12 +606,7 @@
     if(!fechas.includes(hoy)){
       fechas.unshift(hoy);
     }
-    if(!fechaSeleccionada || fechaSeleccionada === hoy){
-      fechaSeleccionada = hoy;
-      fechaBtnText.textContent = formatFechaSimple(hoy);
-      actualizarTotales(hoy);
-    }
-    renderFechaOptions();
+    actualizarSelectorYTotales();
 
     fetch(ENDPOINT, {
       method: 'POST',
@@ -505,8 +622,8 @@
     });
   }
 
-  function actualizarTotales(fecha){
-    const d = dataByFecha[fecha] || {THERMICA:0, CALORUB:0};
+  function actualizarTotales(valor){
+    const d = obtenerTotalesParaValor(valor);
     const totT = d.THERMICA || 0;
     const totC = d.CALORUB || 0;
     document.getElementById('totalThermica').textContent = totT;
@@ -539,8 +656,6 @@
       if(window[callbackName]){
         delete window[callbackName];
       }
-      // Cancela la solicitud huérfana (si sigue cargando en el navegador,
-      // esto libera el slot en vez de dejarla compitiendo con el próximo intento)
       if(scriptTag && scriptTag.parentNode) scriptTag.remove();
       if(myRequestId === requestSeq){
         requestPending = false;
@@ -558,16 +673,7 @@
       dataByFecha = result.porFecha || {};
       fechas = result.fechas || [];
 
-      let seleccion = fechas.includes(fechaSeleccionada) ? fechaSeleccionada : fechas[0];
-      fechaSeleccionada = seleccion || null;
-      fechaBtnText.textContent = seleccion ? formatFechaSimple(seleccion) : '—';
-      renderFechaOptions();
-
-      if(seleccion){
-        actualizarTotales(seleccion);
-      } else {
-        actualizarTotales(null);
-      }
+      actualizarSelectorYTotales();
 
       if(!cargaInicialCompleta){
         cargaInicialCompleta = true;
@@ -590,7 +696,6 @@
     };
     document.body.appendChild(scriptTag);
   }
-
 
   setHandlePercent(50);
   cargarDatos();
