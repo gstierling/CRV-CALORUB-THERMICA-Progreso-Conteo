@@ -288,6 +288,20 @@
     return dia + ' ' + mesNombre + ' ' + anio;
   }
 
+  function obtenerFechaHoy(){
+    // Misma fecha (huso horario de Chile) y mismo formato dd/MM/yyyy que usa el backend
+    const partes = new Intl.DateTimeFormat('es-CL', {
+      timeZone: 'America/Santiago', day: '2-digit', month: '2-digit', year: 'numeric'
+    }).formatToParts(new Date());
+    let dia, mes, anio;
+    partes.forEach(p=>{
+      if(p.type === 'day') dia = p.value;
+      if(p.type === 'month') mes = p.value;
+      if(p.type === 'year') anio = p.value;
+    });
+    return dia + '/' + mes + '/' + anio;
+  }
+
   const track = document.getElementById('sliderTrack');
   const handle = document.getElementById('sliderHandle');
   const fillLeft = document.getElementById('fillLeft');
@@ -352,6 +366,23 @@
 
   function registrar(marca){
     statusMsg.textContent = 'Registrando ' + marca + '...';
+
+    // Actualización optimista: sube el número al instante, sin esperar la red
+    const hoy = obtenerFechaHoy();
+    if(!dataByFecha[hoy]) dataByFecha[hoy] = {THERMICA:0, CALORUB:0};
+    dataByFecha[hoy][marca] = (dataByFecha[hoy][marca] || 0) + 1;
+    if(!fechas.includes(hoy)){
+      fechas.unshift(hoy);
+      const opt = document.createElement('option');
+      opt.value = hoy;
+      opt.textContent = formatFechaSimple(hoy);
+      fechaSelect.insertBefore(opt, fechaSelect.firstChild);
+    }
+    if(!fechaSelect.value || fechaSelect.value === hoy){
+      fechaSelect.value = hoy;
+      actualizarTotales(hoy);
+    }
+
     fetch(ENDPOINT, {
       method: 'POST',
       mode: 'no-cors',
