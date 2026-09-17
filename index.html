@@ -349,13 +349,27 @@
   </div>
 
 <script>
-  const ENDPOINT = "https://script.google.com/macros/s/AKfycbz3Tu43vEBTK5F9htQ7c9OEp9dItass7QkCq_PUk-vaE4LQga8uCmE7mtOF4ojjPNr8/exec";
+  const ENDPOINT = "https://script.google.com/macros/s/AKfycbz3Tu43vEBTK5F9htQ7c9OEp9dItass7QkCq_PUk-vaE4LQga8uCmE7mtOF4ojjPNr8/exec"; // solo para REGISTRAR votos (doPost)
+  const SHEET_ID = "1W_wefLRc0YOsaapSv22fjK1KxRIduw2qhbZL6kL-eRU";
+  const RESUMEN_SHEET = "Resumen";
+  const GVIZ_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq"; // lectura directa de Sheets, sin pasar por Apps Script
   const META = 200;
   const REGISTER_THRESHOLD = 25; // % desde el borde -> se activa a mitad de camino desde el centro
-  const REFRESH_MS = 6000 + Math.floor(Math.random() * 2000); // actualización periódica de totales (con variación por dispositivo)
+  const REFRESH_MS = 3500 + Math.floor(Math.random() * 1500); // más ágil: gviz no tiene la cuota de ejecuciones de Apps Script
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+  // El endpoint gviz a veces serializa fechas como "Date(aaaa,mm,dd)" en vez
+  // del texto plano; esto lo normaliza de vuelta a dd/MM/yyyy.
+  function parseGvizFecha(valor){
+    if(typeof valor === 'string' && valor.indexOf('Date(') === 0){
+      const partes = valor.substring(5, valor.length - 1).split(',').map(function(n){ return parseInt(n, 10); });
+      const pad = function(n){ return (n < 10 ? '0' : '') + n; };
+      return pad(partes[2]) + '/' + pad(partes[1] + 1) + '/' + partes[0];
+    }
+    return valor;
+  }
 
   function formatFechaSimple(fecha){
     const partes = fecha.split('/');
@@ -600,6 +614,13 @@
   let cargaInicialCompleta = false;
   let intentos = 0;
 
+  function ordenarFechasDesc(lista){
+    return lista.sort(function(a,b){
+      const pa = a.split('/'), pb = b.split('/');
+      return new Date(pb[2],pb[1]-1,pb[0]) - new Date(pa[2],pa[1]-1,pa[0]);
+    });
+  }
+
   function cargarDatos(force){
     if(requestPending && !force) return; // evita solicitudes superpuestas
     requestPending = true;
@@ -610,10 +631,9 @@
       statusMsg.textContent = 'Cargando datos' + (intentos > 1 ? ' (intento ' + intentos + ')…' : '…');
     }
 
-    // El primer llamado puede tardar bastante más si Apps Script estaba
-    // "frío" (inactivo). Le damos más margen para no cancelarlo en vano
-    // y terminar lanzando varios intentos en paralelo que compiten entre sí.
-    const tiempoEspera = cargaInicialCompleta ? 15000 : 25000;
+    // gviz es una lectura nativa de Sheets: no debería tardar más que un
+    // par de segundos. Igual dejamos margen razonable por si la red va lenta.
+    const tiempoEspera = cargaInicialCompleta ? 10000 : 15000;
 
     const timeoutId = setTimeout(()=>{
       if(window[callbackName]){
@@ -625,7 +645,7 @@
       }
     }, tiempoEspera);
 
-    window[callbackName] = function(result){
+    window[callbackName] = function(response){
       clearTimeout(timeoutId);
       if(myRequestId !== requestSeq){
         delete window[callbackName];
@@ -633,8 +653,22 @@
         return;
       }
 
-      dataByFecha = result.porFecha || {};
-      fechas = result.fechas || [];
+      const nuevoDataByFecha = {};
+      const nuevasFechas = [];
+      const filas = (response && response.table && response.table.rows) ? response.table.rows : [];
+      filas.forEach(function(fila){
+        const celdas = fila.c || [];
+        const fechaCelda = celdas[0];
+        if(!fechaCelda || fechaCelda.v === null || fechaCelda.v === undefined) return;
+        const fecha = parseGvizFecha(fechaCelda.v);
+        const t = (celdas[1] && typeof celdas[1].v === 'number') ? celdas[1].v : 0;
+        const c = (celdas[2] && typeof celdas[2].v === 'number') ? celdas[2].v : 0;
+        nuevoDataByFecha[fecha] = {THERMICA: t, CALORUB: c};
+        nuevasFechas.push(fecha);
+      });
+
+      dataByFecha = nuevoDataByFecha;
+      fechas = ordenarFechasDesc(nuevasFechas);
 
       actualizarSelectorYTotales();
 
@@ -647,8 +681,13 @@
       requestPending = false;
       if(scriptTag && scriptTag.parentNode) scriptTag.remove();
     };
+
     const scriptTag = document.createElement('script');
-    scriptTag.src = ENDPOINT + '?callback=' + callbackName;
+    const query = 'tqx=out:json;responseHandler:' + callbackName
+      + '&sheet=' + encodeURIComponent(RESUMEN_SHEET)
+      + '&headers=1'
+      + '&_=' + Date.now(); // evita respuestas cacheadas por el navegador
+    scriptTag.src = GVIZ_URL + '?' + query;
     scriptTag.onerror = function(){
       clearTimeout(timeoutId);
       delete window[callbackName];
