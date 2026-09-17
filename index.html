@@ -530,14 +530,22 @@
       statusMsg.textContent = 'Cargando datos' + (intentos > 1 ? ' (intento ' + intentos + ')…' : '…');
     }
 
+    // El primer llamado puede tardar bastante más si Apps Script estaba
+    // "frío" (inactivo). Le damos más margen para no cancelarlo en vano
+    // y terminar lanzando varios intentos en paralelo que compiten entre sí.
+    const tiempoEspera = cargaInicialCompleta ? 8000 : 25000;
+
     const timeoutId = setTimeout(()=>{
       if(window[callbackName]){
         delete window[callbackName];
       }
+      // Cancela la solicitud huérfana (si sigue cargando en el navegador,
+      // esto libera el slot en vez de dejarla compitiendo con el próximo intento)
+      if(scriptTag && scriptTag.parentNode) scriptTag.remove();
       if(myRequestId === requestSeq){
         requestPending = false;
       }
-    }, 6000);
+    }, tiempoEspera);
 
     window[callbackName] = function(result){
       clearTimeout(timeoutId);
@@ -582,6 +590,7 @@
     };
     document.body.appendChild(scriptTag);
   }
+
 
   setHandlePercent(50);
   cargarDatos();
