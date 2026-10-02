@@ -311,6 +311,144 @@
     min-height:18px;
     color:var(--muted);
   }
+
+  .encuesta{
+    width:100%;
+    max-width:640px;
+    margin-top:48px;
+  }
+  .encuesta-titulo{
+    text-align:center;
+    font-weight:900;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    color:var(--text);
+    font-size:clamp(24px,6vw,32px);
+    margin-bottom:4px;
+  }
+  .encuesta-subtitulo{
+    text-align:center;
+    font-size:clamp(14px,3.6vw,17px);
+    font-weight:700;
+    color:var(--muted);
+    margin-bottom:22px;
+  }
+  .pregunta{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:18px 18px 16px;
+    margin-bottom:16px;
+  }
+  .pregunta-texto{
+    font-weight:800;
+    font-size:clamp(16px,4.2vw,19px);
+    margin-bottom:12px;
+    line-height:1.3;
+  }
+  .opcion{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:11px 10px;
+    border-radius:10px;
+    cursor:pointer;
+  }
+  .opcion:hover{
+    background:var(--panel-soft);
+  }
+  .opcion input[type="radio"]{
+    appearance:none;
+    -webkit-appearance:none;
+    width:22px;
+    height:22px;
+    min-width:22px;
+    border:2px solid var(--border);
+    border-radius:50%;
+    display:inline-block;
+    position:relative;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .opcion input[type="radio"]:checked{
+    border-color:var(--thermica);
+  }
+  .opcion input[type="radio"]:checked::after{
+    content:'';
+    position:absolute;
+    top:3px; left:3px;
+    width:12px; height:12px;
+    border-radius:50%;
+    background:linear-gradient(135deg, var(--thermica), var(--calorub));
+  }
+  .opcion label{
+    font-size:clamp(15px,4vw,17px);
+    font-weight:700;
+    color:var(--text);
+    cursor:pointer;
+  }
+  .opcion-otro-input{
+    margin-top:6px;
+    margin-left:34px;
+    width:calc(100% - 34px);
+    background:var(--panel-soft);
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:9px 12px;
+    font-family:'Nunito',sans-serif;
+    font-weight:700;
+    font-size:15px;
+    color:var(--text);
+  }
+  .opcion-otro-input:disabled{
+    opacity:0.5;
+  }
+  .encuesta-enviar{
+    width:100%;
+    background:linear-gradient(135deg, var(--thermica), var(--calorub));
+    color:#fff;
+    border:none;
+    border-radius:14px;
+    padding:16px;
+    font-family:'Nunito',sans-serif;
+    font-weight:900;
+    font-size:clamp(17px,4.6vw,20px);
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+    margin-top:4px;
+  }
+  .encuesta-enviar:disabled{
+    opacity:0.6;
+    cursor:default;
+  }
+  .encuesta-estado{
+    text-align:center;
+    margin-top:12px;
+    font-weight:800;
+    font-size:15px;
+    min-height:20px;
+    color:var(--muted);
+  }
+  .encuesta-gracias{
+    text-align:center;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-top:4px solid var(--calorub);
+    border-radius:16px;
+    padding:36px 20px;
+  }
+  .encuesta-gracias-titulo{
+    font-weight:900;
+    font-size:clamp(22px,5.6vw,28px);
+    color:var(--calorub);
+    margin-bottom:8px;
+  }
+  .encuesta-gracias-texto{
+    font-weight:700;
+    color:var(--muted);
+    font-size:clamp(14px,3.6vw,16px);
+  }
 </style>
 </head>
 <body>
@@ -368,8 +506,61 @@
     </div>
   </div>
 
+  <div class="encuesta" id="encuestaWrap">
+    <div class="encuesta-titulo">Cuéntanos tu experiencia</div>
+    <div class="encuesta-subtitulo">Son solo 5 preguntas rápidas</div>
+
+    <form id="encuestaForm">
+      <div class="pregunta">
+        <div class="pregunta-texto">1) Antes de esta jornada, ¿conocías Calorub?</div>
+        <label class="opcion"><input type="radio" name="p1" value="Sí, lo he usado."><label>Sí, lo he usado.</label></label>
+        <label class="opcion"><input type="radio" name="p1" value="Sí, lo conocía, pero no lo he usado."><label>Sí, lo conocía, pero no lo he usado.</label></label>
+        <label class="opcion"><input type="radio" name="p1" value="No, no lo conocía."><label>No, no lo conocía.</label></label>
+      </div>
+
+      <div class="pregunta">
+        <div class="pregunta-texto">2) ¿Habías visto anteriormente a Calorub en CicloRecreoVía?</div>
+        <label class="opcion"><input type="radio" name="p2" value="Sí."><label>Sí.</label></label>
+        <label class="opcion"><input type="radio" name="p2" value="No."><label>No.</label></label>
+        <label class="opcion"><input type="radio" name="p2" value="No estoy seguro/a."><label>No estoy seguro/a.</label></label>
+      </div>
+
+      <div class="pregunta">
+        <div class="pregunta-texto">3) ¿En qué ocasión utilizas o utilizarías un producto como Calorub?</div>
+        <label class="opcion"><input type="radio" name="p3" value="Antes de hacer actividad física."><label>Antes de hacer actividad física.</label></label>
+        <label class="opcion"><input type="radio" name="p3" value="Durante la actividad física."><label>Durante la actividad física.</label></label>
+        <label class="opcion"><input type="radio" name="p3" value="Después de hacer actividad física."><label>Después de hacer actividad física.</label></label>
+        <label class="opcion"><input type="radio" name="p3" value="Cuando siento dolor o tensión muscular."><label>Cuando siento dolor o tensión muscular.</label></label>
+        <label class="opcion"><input type="radio" name="p3" value="No utilizo este tipo de productos."><label>No utilizo este tipo de productos.</label></label>
+      </div>
+
+      <div class="pregunta">
+        <div class="pregunta-texto">4) Cuando tienes una molestia muscular o una lesión leve, ¿qué producto o solución utilizas habitualmente?</div>
+        <label class="opcion"><input type="radio" name="p4" value="Cremas o geles de uso tópico."><label>Cremas o geles de uso tópico.</label></label>
+        <label class="opcion"><input type="radio" name="p4" value="Frío o calor local."><label>Frío o calor local.</label></label>
+        <label class="opcion"><input type="radio" name="p4" value="Analgésicos o antiinflamatorios."><label>Analgésicos o antiinflamatorios.</label></label>
+        <label class="opcion"><input type="radio" name="p4" value="Masajes."><label>Masajes.</label></label>
+        <label class="opcion"><input type="radio" name="p4" value="Reposo."><label>Reposo.</label></label>
+        <label class="opcion"><input type="radio" name="p4" value="No utilizo nada."><label>No utilizo nada.</label></label>
+        <label class="opcion"><input type="radio" name="p4" value="Otro" id="p4OtroRadio"><label>Otro:</label></label>
+        <input type="text" class="opcion-otro-input" id="p4OtroTexto" placeholder="Especifica aquí" disabled>
+      </div>
+
+      <div class="pregunta">
+        <div class="pregunta-texto">5) Después de conocer Calorub en esta activación, ¿qué tan probable es que consideres usarlo ante una molestia o tensión muscular?</div>
+        <label class="opcion"><input type="radio" name="p5" value="Muy probable."><label>Muy probable.</label></label>
+        <label class="opcion"><input type="radio" name="p5" value="Probable."><label>Probable.</label></label>
+        <label class="opcion"><input type="radio" name="p5" value="Poco probable."><label>Poco probable.</label></label>
+        <label class="opcion"><input type="radio" name="p5" value="Nada probable."><label>Nada probable.</label></label>
+      </div>
+
+      <button type="submit" class="encuesta-enviar" id="encuestaBtn">Enviar respuestas</button>
+      <div class="encuesta-estado" id="encuestaEstado">&nbsp;</div>
+    </form>
+  </div>
+
 <script>
-  const ENDPOINT = "https://script.google.com/macros/s/AKfycbz3Tu43vEBTK5F9htQ7c9OEp9dItass7QkCq_PUk-vaE4LQga8uCmE7mtOF4ojjPNr8/exec"; // solo para REGISTRAR votos (doPost)
+  const ENDPOINT = "https://script.google.com/macros/s/AKfycbz3Tu43vEBTK5F9htQ7c9OEp9dItass7QkCq_PUk-vaE4LQga8uCmE7mtOF4ojjPNr8/exec"; // solo para REGISTRAR votos (doPost) y respuestas de encuesta
   const SHEET_ID = "1W_wefLRc0YOsaapSv22fjK1KxRIduw2qhbZL6kL-eRU";
   const RESUMEN_SHEET = "Resumen";
   const GVIZ_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID + "/gviz/tq"; // lectura directa de Sheets, sin pasar por Apps Script
@@ -750,6 +941,67 @@
   setHandlePercent(50);
   cargarDatos();
   setInterval(cargarDatos, REFRESH_MS);
+
+  // --- Encuesta ---
+  const encuestaForm = document.getElementById('encuestaForm');
+  const encuestaWrap = document.getElementById('encuestaWrap');
+  const encuestaEstado = document.getElementById('encuestaEstado');
+  const encuestaBtn = document.getElementById('encuestaBtn');
+  const p4OtroRadio = document.getElementById('p4OtroRadio');
+  const p4OtroTexto = document.getElementById('p4OtroTexto');
+
+  document.querySelectorAll('input[name="p4"]').forEach(function(radio){
+    radio.addEventListener('change', function(){
+      p4OtroTexto.disabled = !p4OtroRadio.checked;
+      if(!p4OtroRadio.checked) p4OtroTexto.value = '';
+    });
+  });
+
+  encuestaForm.addEventListener('submit', function(e){
+    e.preventDefault();
+
+    const leerSeleccion = function(nombre){
+      const el = encuestaForm.querySelector('input[name="' + nombre + '"]:checked');
+      return el ? el.value : '';
+    };
+
+    const p1 = leerSeleccion('p1');
+    const p2 = leerSeleccion('p2');
+    const p3 = leerSeleccion('p3');
+    const p4 = leerSeleccion('p4');
+    const p5 = leerSeleccion('p5');
+    const p4Otro = (p4 === 'Otro') ? p4OtroTexto.value.trim() : '';
+
+    if(!p1 || !p2 || !p3 || !p4 || !p5){
+      encuestaEstado.textContent = 'Por favor responde todas las preguntas.';
+      return;
+    }
+    if(p4 === 'Otro' && !p4Otro){
+      encuestaEstado.textContent = 'Por favor especifica tu respuesta en la pregunta 4.';
+      return;
+    }
+
+    encuestaBtn.disabled = true;
+    encuestaEstado.textContent = 'Enviando…';
+
+    fetch(ENDPOINT, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: {'Content-Type': 'text/plain;charset=utf-8'},
+      body: JSON.stringify({
+        tipo: 'encuesta',
+        respuestas: {p1: p1, p2: p2, p3: p3, p4: p4, p4Otro: p4Otro, p5: p5}
+      })
+    }).then(function(){
+      encuestaWrap.innerHTML = '<div class="encuesta-gracias">'
+        + '<div class="encuesta-gracias-titulo">¡Gracias por tu respuesta!</div>'
+        + '<div class="encuesta-gracias-texto">Tu opinión nos ayuda a seguir mejorando.</div>'
+        + '</div>';
+    }).catch(function(){
+      encuestaBtn.disabled = false;
+      encuestaEstado.textContent = 'Hubo un error al enviar. Intenta de nuevo.';
+    });
+  });
 </script>
 </body>
 </html>
