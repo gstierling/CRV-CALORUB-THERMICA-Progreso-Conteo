@@ -480,6 +480,15 @@
     font-weight:900;
     font-size:clamp(20px,5.6vw,26px);
     color:var(--calorub);
+    margin-bottom:4px;
+  }
+  .dona-periodo{
+    text-align:center;
+    font-weight:800;
+    font-size:14px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.5px;
     margin-bottom:14px;
   }
   .dona-grid{
@@ -699,6 +708,7 @@
 
   <div class="dona-section" id="donaSection">
     <div class="dona-section-titulo">Resultados parciales de la encuesta</div>
+    <div class="dona-periodo" id="donaPeriodoLabel">&nbsp;</div>
     <div class="dona-grid" id="donaGrid"></div>
     <button type="button" class="ocultar-donas-btn" id="ocultarDonasBtn">Ocultar gráficas</button>
   </div>
@@ -983,6 +993,9 @@
     document.getElementById('totalCalorub').textContent = totC;
     document.getElementById('percentThermica').textContent = '(' + Math.round(totT/META*100) + '%)';
     document.getElementById('percentCalorub').textContent = '(' + Math.round(totC/META*100) + '%)';
+    // Si las donas ya están visibles, se re-filtran al mismo período
+    // recién seleccionado (función definida más abajo).
+    if(typeof actualizarGraficosDonaFiltrados === 'function') actualizarGraficosDonaFiltrados();
   }
 
   let requestSeq = 0;
@@ -1252,6 +1265,56 @@
     });
   }
 
+  // Datos crudos de ResumenEncuesta: { 'dd/MM/yyyy': { p1:{opcion:conteo,...}, p2:{...}, ... } }
+  let encuestaDataByFecha = {};
+  const donaPeriodoLabel = document.getElementById('donaPeriodoLabel');
+
+  // Suma los conteos de encuestaDataByFecha según el mismo criterio
+  // (Total / mes / fecha puntual) que esté elegido en el selector de fecha,
+  // para que las donas siempre queden asociadas al mismo período que los
+  // totales de THERMICA/CALORUB de arriba.
+  function obtenerConteosEncuestaParaOpcion(op){
+    const incluyeFecha = function(f){
+      if(!op || op.tipo === 'total') return true;
+      if(op.tipo === 'mes') return claveMes_(f) === op.valor;
+      return f === op.valor;
+    };
+
+    const conteos = {};
+    Object.keys(encuestaDataByFecha).forEach(function(f){
+      if(!incluyeFecha(f)) return;
+      const porPregunta = encuestaDataByFecha[f];
+      Object.keys(porPregunta).forEach(function(preg){
+        if(!conteos[preg]) conteos[preg] = {};
+        Object.keys(porPregunta[preg]).forEach(function(op2){
+          conteos[preg][op2] = (conteos[preg][op2] || 0) + porPregunta[preg][op2];
+        });
+      });
+    });
+    return conteos;
+  }
+
+  // Aplica el filtro de fecha vigente (valorSeleccionado) a los datos ya
+  // cargados y repinta las donas + leyendas + etiqueta de período.
+  function actualizarGraficosDonaFiltrados(){
+    if(!donaSection.classList.contains('show') || Object.keys(donaCharts).length === 0) return;
+
+    const opciones = obtenerOpciones();
+    const op = opciones.find(function(o){ return o.clave === valorSeleccionado; }) || opciones[0];
+    const conteos = obtenerConteosEncuestaParaOpcion(op);
+
+    PREGUNTAS_DONA.forEach(function(preg){
+      const chart = donaCharts[preg.key];
+      if(!chart) return;
+      chart.data.datasets[0].data = preg.opciones.map(function(o2){
+        return (conteos[preg.key] && conteos[preg.key][o2]) ? conteos[preg.key][o2] : 0;
+      });
+      chart.update();
+    });
+    actualizarLeyendasDona(conteos);
+    donaPeriodoLabel.textContent = 'Período: ' + (op ? formatOpcion(op) : 'Total');
+  }
+
   function cargarDatosEncuesta(){
     const callbackName = 'cbEncuesta_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
 
@@ -1259,27 +1322,23 @@
       delete window[callbackName];
       if(scriptTagEncuesta && scriptTagEncuesta.parentNode) scriptTagEncuesta.remove();
 
-      const conteos = {};
+      const nuevoDataByFecha = {};
       const filas = (response && response.table && response.table.rows) ? response.table.rows : [];
       filas.forEach(function(fila){
         const celdas = fila.c || [];
-        const pregunta = celdas[0] && celdas[0].v;
-        const opcion = celdas[1] && celdas[1].v;
-        const conteo = (celdas[2] && typeof celdas[2].v === 'number') ? celdas[2].v : 0;
-        if(!pregunta || !opcion) return;
-        if(!conteos[pregunta]) conteos[pregunta] = {};
-        conteos[pregunta][opcion] = conteo;
+        const fechaCelda = celdas[0];
+        const pregunta = celdas[1] && celdas[1].v;
+        const opcion = celdas[2] && celdas[2].v;
+        const conteo = (celdas[3] && typeof celdas[3].v === 'number') ? celdas[3].v : 0;
+        if(!fechaCelda || fechaCelda.v === null || fechaCelda.v === undefined || !pregunta || !opcion) return;
+        const fecha = parseGvizFecha(fechaCelda.v);
+        if(!nuevoDataByFecha[fecha]) nuevoDataByFecha[fecha] = {};
+        if(!nuevoDataByFecha[fecha][pregunta]) nuevoDataByFecha[fecha][pregunta] = {};
+        nuevoDataByFecha[fecha][pregunta][opcion] = conteo;
       });
 
-      PREGUNTAS_DONA.forEach(function(preg){
-        const chart = donaCharts[preg.key];
-        if(!chart) return;
-        chart.data.datasets[0].data = preg.opciones.map(function(op){
-          return (conteos[preg.key] && conteos[preg.key][op]) ? conteos[preg.key][op] : 0;
-        });
-        chart.update();
-      });
-      actualizarLeyendasDona(conteos);
+      encuestaDataByFecha = nuevoDataByFecha;
+      actualizarGraficosDonaFiltrados();
     };
 
     const scriptTagEncuesta = document.createElement('script');
