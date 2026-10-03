@@ -502,10 +502,14 @@
     color:var(--text);
     margin-bottom:10px;
   }
-  .dona-card canvas{
+  .dona-canvas-wrap{
+    position:relative;
+    width:100%;
     max-width:260px;
-    max-height:260px;
+    height:220px;
     margin:0 auto;
+  }
+  .dona-card canvas{
     display:block;
   }
   .dona-leyenda{
@@ -1183,9 +1187,12 @@
       titulo.textContent = preg.titulo;
       card.appendChild(titulo);
 
+      const canvasWrap = document.createElement('div');
+      canvasWrap.className = 'dona-canvas-wrap';
       const canvas = document.createElement('canvas');
       canvas.id = 'dona_' + preg.key;
-      card.appendChild(canvas);
+      canvasWrap.appendChild(canvas);
+      card.appendChild(canvasWrap);
 
       const leyenda = document.createElement('div');
       leyenda.className = 'dona-leyenda';
@@ -1206,6 +1213,8 @@
           }]
         },
         options: {
+          responsive: true,
+          maintainAspectRatio: false,
           plugins: { legend: { display: false } },
           cutout: '62%'
         }
