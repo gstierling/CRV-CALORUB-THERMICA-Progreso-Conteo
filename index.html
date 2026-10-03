@@ -1273,10 +1273,12 @@
 
   function revelarGraficasDona(){
     if(!donaSection.classList.contains('show')){
-      if(Object.keys(donaCharts).length === 0) construirGraficosDona();
-      donaSection.classList.add('show');
-      cargarDatosEncuesta();
-      donaIntervalId = setInterval(cargarDatosEncuesta, REFRESH_MS);
+      const ok = (Object.keys(donaCharts).length > 0) || construirGraficosDonaSeguro();
+      donaSection.classList.add('show'); // se muestra siempre: confirma que la clave funcionó
+      if(ok){
+        cargarDatosEncuesta();
+        donaIntervalId = setInterval(cargarDatosEncuesta, REFRESH_MS);
+      }
       donaSection.scrollIntoView({behavior: 'smooth', block: 'start'});
     }
   }
@@ -1294,22 +1296,44 @@
   let claveProgreso = 0;
   const claveBotones = document.querySelectorAll('.clave-letra');
 
+  function resetClaveVisual(){
+    claveBotones.forEach(function(b){ b.classList.remove('ok'); });
+  }
+
   claveBotones.forEach(function(btn){
     btn.addEventListener('click', function(){
       const letra = btn.getAttribute('data-letra');
       if(letra === CLAVE_SECUENCIA[claveProgreso]){
+        btn.classList.add('ok'); // feedback visual inmediato de cada letra correcta
         claveProgreso++;
         if(claveProgreso === CLAVE_SECUENCIA.length){
           claveProgreso = 0;
           revelarGraficasDona();
+          setTimeout(resetClaveVisual, 700);
         }
       } else {
         // si la letra presionada coincide con el inicio de la secuencia,
         // reinicia el progreso desde ahí; si no, vuelve a cero.
+        resetClaveVisual();
         claveProgreso = (letra === CLAVE_SECUENCIA[0]) ? 1 : 0;
+        if(claveProgreso === 1) btn.classList.add('ok');
       }
     });
   });
+
+  function construirGraficosDonaSeguro(){
+    try{
+      if(typeof Chart === 'undefined'){
+        donaGrid.innerHTML = '<div class="dona-card-titulo">No se pudieron cargar los gráficos (sin conexión a internet). Intenta de nuevo.</div>';
+        return false;
+      }
+      construirGraficosDona();
+      return true;
+    } catch(err){
+      donaGrid.innerHTML = '<div class="dona-card-titulo">Ocurrió un error al generar los gráficos.</div>';
+      return false;
+    }
+  }
 </script>
 </body>
 </html>
