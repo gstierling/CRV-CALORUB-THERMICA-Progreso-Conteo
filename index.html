@@ -6,6 +6,7 @@
 <title>THERMICA - CALORUB | CicloRecreoVía</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
   :root{
     --bg:#fdf5f3;
@@ -449,6 +450,124 @@
     color:var(--muted);
     font-size:clamp(14px,3.6vw,16px);
   }
+
+  .dona-section{
+    display:none;
+    width:100%;
+    max-width:640px;
+    margin-top:28px;
+  }
+  .dona-section.show{
+    display:block;
+  }
+  .dona-section-titulo{
+    text-align:center;
+    font-weight:900;
+    font-size:clamp(20px,5.6vw,26px);
+    color:var(--calorub);
+    margin-bottom:14px;
+  }
+  .dona-grid{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:18px;
+  }
+  .dona-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-top:4px solid var(--thermica);
+    border-radius:16px;
+    padding:18px;
+    box-shadow:0 4px 14px rgba(70,20,15,0.08);
+  }
+  .dona-card-titulo{
+    text-align:center;
+    font-weight:800;
+    font-size:15px;
+    color:var(--text);
+    margin-bottom:10px;
+  }
+  .dona-card canvas{
+    max-width:260px;
+    max-height:260px;
+    margin:0 auto;
+    display:block;
+  }
+  .dona-leyenda{
+    margin-top:12px;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .dona-leyenda-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-weight:700;
+    color:var(--text);
+  }
+  .dona-leyenda-dot{
+    width:11px;
+    height:11px;
+    border-radius:50%;
+    flex-shrink:0;
+  }
+  .dona-leyenda-valor{
+    margin-left:auto;
+    color:var(--muted);
+    font-weight:800;
+  }
+  .ocultar-donas-btn{
+    width:100%;
+    background:var(--panel-soft);
+    color:var(--calorub);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+    font-family:'Nunito',sans-serif;
+    font-weight:900;
+    font-size:15px;
+    letter-spacing:0.5px;
+    text-transform:uppercase;
+    cursor:pointer;
+    margin-top:6px;
+  }
+
+  .clave-section{
+    width:100%;
+    max-width:640px;
+    margin-top:40px;
+    padding-top:20px;
+    border-top:1px dashed var(--border);
+    text-align:center;
+  }
+  .clave-botones{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .clave-letra{
+    width:40px;
+    height:40px;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:var(--panel);
+    color:var(--muted);
+    font-family:'Nunito',sans-serif;
+    font-weight:900;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .clave-letra:active{
+    background:var(--panel-soft);
+  }
+  .clave-letra.ok{
+    background:var(--calorub);
+    color:#fff;
+    border-color:var(--calorub);
+  }
 </style>
 </head>
 <body>
@@ -557,6 +676,24 @@
       <button type="submit" class="encuesta-enviar" id="encuestaBtn">Enviar respuestas</button>
       <div class="encuesta-estado" id="encuestaEstado">&nbsp;</div>
     </form>
+  </div>
+
+  <div class="dona-section" id="donaSection">
+    <div class="dona-section-titulo">Resultados parciales de la encuesta</div>
+    <div class="dona-grid" id="donaGrid"></div>
+    <button type="button" class="ocultar-donas-btn" id="ocultarDonasBtn">Ocultar gráficas</button>
+  </div>
+
+  <div class="clave-section">
+    <div class="clave-botones" id="claveBotones">
+      <button type="button" class="clave-letra" data-letra="C">C</button>
+      <button type="button" class="clave-letra" data-letra="A">A</button>
+      <button type="button" class="clave-letra" data-letra="L">L</button>
+      <button type="button" class="clave-letra" data-letra="O">O</button>
+      <button type="button" class="clave-letra" data-letra="R">R</button>
+      <button type="button" class="clave-letra" data-letra="U">U</button>
+      <button type="button" class="clave-letra" data-letra="B">B</button>
+    </div>
   </div>
 
 <script>
@@ -1000,6 +1137,177 @@
     }).catch(function(){
       encuestaBtn.disabled = false;
       encuestaEstado.textContent = 'Hubo un error al enviar. Intenta de nuevo.';
+    });
+  });
+
+  // --- Gráficos de dona (resultados parciales de la encuesta) ---
+  const PREGUNTAS_DONA = [
+    {key:'p1', titulo:'1) ¿Conocías Calorub antes?', opciones:['Sí, lo he usado.','Sí, lo conocía, pero no lo he usado.','No, no lo conocía.']},
+    {key:'p2', titulo:'2) ¿Habías visto Calorub en CicloRecreoVía?', opciones:['Sí.','No.','No estoy seguro/a.']},
+    {key:'p3', titulo:'3) ¿Ocasión de uso?', opciones:['Antes de hacer actividad física.','Durante la actividad física.','Después de hacer actividad física.','Cuando siento dolor o tensión muscular.','No utilizo este tipo de productos.']},
+    {key:'p4', titulo:'4) ¿Qué usas ante una molestia muscular?', opciones:['Cremas o geles de uso tópico.','Frío o calor local.','Analgésicos o antiinflamatorios.','Masajes.','Reposo.','No utilizo nada.','Otro']},
+    {key:'p5', titulo:'5) ¿Probabilidad de usar Calorub?', opciones:['Muy probable.','Probable.','Poco probable.','Nada probable.']}
+  ];
+  const DONA_COLORES = ['#e8542f','#b3122c','#f2a65a','#7a4a3a','#c97b6d','#9c7a75','#5c2a1f'];
+
+  const donaSection = document.getElementById('donaSection');
+  const donaGrid = document.getElementById('donaGrid');
+  const ocultarDonasBtn = document.getElementById('ocultarDonasBtn');
+  let donaCharts = {};
+  let donaIntervalId = null;
+
+  function construirGraficosDona(){
+    donaGrid.innerHTML = '';
+    donaCharts = {};
+    PREGUNTAS_DONA.forEach(function(preg){
+      const card = document.createElement('div');
+      card.className = 'dona-card';
+
+      const titulo = document.createElement('div');
+      titulo.className = 'dona-card-titulo';
+      titulo.textContent = preg.titulo;
+      card.appendChild(titulo);
+
+      const canvas = document.createElement('canvas');
+      canvas.id = 'dona_' + preg.key;
+      card.appendChild(canvas);
+
+      const leyenda = document.createElement('div');
+      leyenda.className = 'dona-leyenda';
+      leyenda.id = 'leyenda_' + preg.key;
+      card.appendChild(leyenda);
+
+      donaGrid.appendChild(card);
+
+      const colores = preg.opciones.map(function(_, i){ return DONA_COLORES[i % DONA_COLORES.length]; });
+      donaCharts[preg.key] = new Chart(canvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: preg.opciones,
+          datasets: [{
+            data: preg.opciones.map(function(){ return 0; }),
+            backgroundColor: colores,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          cutout: '62%'
+        }
+      });
+    });
+  }
+
+  function actualizarLeyendasDona(conteos){
+    PREGUNTAS_DONA.forEach(function(preg){
+      const leyenda = document.getElementById('leyenda_' + preg.key);
+      if(!leyenda) return;
+      leyenda.innerHTML = '';
+      const colores = preg.opciones.map(function(_, i){ return DONA_COLORES[i % DONA_COLORES.length]; });
+      preg.opciones.forEach(function(op, i){
+        const valor = (conteos[preg.key] && conteos[preg.key][op]) ? conteos[preg.key][op] : 0;
+        const item = document.createElement('div');
+        item.className = 'dona-leyenda-item';
+
+        const dot = document.createElement('span');
+        dot.className = 'dona-leyenda-dot';
+        dot.style.background = colores[i];
+        item.appendChild(dot);
+
+        const texto = document.createElement('span');
+        texto.textContent = op;
+        item.appendChild(texto);
+
+        const valorSpan = document.createElement('span');
+        valorSpan.className = 'dona-leyenda-valor';
+        valorSpan.textContent = valor;
+        item.appendChild(valorSpan);
+
+        leyenda.appendChild(item);
+      });
+    });
+  }
+
+  function cargarDatosEncuesta(){
+    const callbackName = 'cbEncuesta_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+
+    window[callbackName] = function(response){
+      delete window[callbackName];
+      if(scriptTagEncuesta && scriptTagEncuesta.parentNode) scriptTagEncuesta.remove();
+
+      const conteos = {};
+      const filas = (response && response.table && response.table.rows) ? response.table.rows : [];
+      filas.forEach(function(fila){
+        const celdas = fila.c || [];
+        const pregunta = celdas[0] && celdas[0].v;
+        const opcion = celdas[1] && celdas[1].v;
+        const conteo = (celdas[2] && typeof celdas[2].v === 'number') ? celdas[2].v : 0;
+        if(!pregunta || !opcion) return;
+        if(!conteos[pregunta]) conteos[pregunta] = {};
+        conteos[pregunta][opcion] = conteo;
+      });
+
+      PREGUNTAS_DONA.forEach(function(preg){
+        const chart = donaCharts[preg.key];
+        if(!chart) return;
+        chart.data.datasets[0].data = preg.opciones.map(function(op){
+          return (conteos[preg.key] && conteos[preg.key][op]) ? conteos[preg.key][op] : 0;
+        });
+        chart.update();
+      });
+      actualizarLeyendasDona(conteos);
+    };
+
+    const scriptTagEncuesta = document.createElement('script');
+    const queryEncuesta = 'tqx=out:json;responseHandler:' + callbackName
+      + '&sheet=' + encodeURIComponent('ResumenEncuesta')
+      + '&headers=1'
+      + '&_=' + Date.now();
+    scriptTagEncuesta.src = GVIZ_URL + '?' + queryEncuesta;
+    scriptTagEncuesta.onerror = function(){
+      delete window[callbackName];
+      if(scriptTagEncuesta.parentNode) scriptTagEncuesta.remove();
+    };
+    document.body.appendChild(scriptTagEncuesta);
+  }
+
+  function revelarGraficasDona(){
+    if(!donaSection.classList.contains('show')){
+      if(Object.keys(donaCharts).length === 0) construirGraficosDona();
+      donaSection.classList.add('show');
+      cargarDatosEncuesta();
+      donaIntervalId = setInterval(cargarDatosEncuesta, REFRESH_MS);
+      donaSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+    }
+  }
+
+  ocultarDonasBtn.addEventListener('click', function(){
+    donaSection.classList.remove('show');
+    if(donaIntervalId){
+      clearInterval(donaIntervalId);
+      donaIntervalId = null;
+    }
+  });
+
+  // --- Clave de botones (palabra: CALORUB -> secuencia: B-U-R-O-L-C-A) ---
+  const CLAVE_SECUENCIA = ['B','U','R','O','L','C','A'];
+  let claveProgreso = 0;
+  const claveBotones = document.querySelectorAll('.clave-letra');
+
+  claveBotones.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const letra = btn.getAttribute('data-letra');
+      if(letra === CLAVE_SECUENCIA[claveProgreso]){
+        claveProgreso++;
+        if(claveProgreso === CLAVE_SECUENCIA.length){
+          claveProgreso = 0;
+          revelarGraficasDona();
+        }
+      } else {
+        // si la letra presionada coincide con el inicio de la secuencia,
+        // reinicia el progreso desde ahí; si no, vuelve a cero.
+        claveProgreso = (letra === CLAVE_SECUENCIA[0]) ? 1 : 0;
+      }
     });
   });
 </script>
